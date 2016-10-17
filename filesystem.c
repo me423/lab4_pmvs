@@ -11,6 +11,7 @@ static char **file_name;
 static int file_count = 0;
 #define STORE_FILE "/home/user/pmvs4/all_file"
 #define BUF_FILE "/home/user/pmvs4/buffer_file"
+
 static int path_index(const char* path)
 {
 	int i  = 0;
