@@ -11,7 +11,7 @@ static char **file_name;
 static int *file_size;
 static int file_count = 0;
 #define STORE_FILE "/home/me4/Desktop/lab4_pmvs/all_file"
-#define BUF_FILE "/home/me4/Desktop/lab4_pmvs//buffer_file"
+#define BUF_FILE "/home/me4/Desktop/lab4_pmvs/buffer_file"
 struct file_info {
 	char file_name[NAME_LENGTH];
 	int file_size;
@@ -20,8 +20,8 @@ struct file_info {
 static int path_index(const char* path)
 {
 	int i  = 0;
-	for(i = 0; i < file_count; i++) {
-		if(strcmp(file_name[i], path)==0) {
+	for (i = 0; i < file_count; i++) {
+		if (strcmp(file_name[i], path)==0) {
 			return i;
 		}
 	}
@@ -55,7 +55,7 @@ static int readdir_callback(const char *path, void *buf, fuse_fill_dir_t filler,
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 	int i;
-	for(i = 0; i < file_count; i++) {
+	for (i = 0; i < file_count; i++) {
 		if(strlen(file_name[i])!= 0) {
 			filler(buf, file_name[i]+1, NULL, 0);
 		}
@@ -66,7 +66,7 @@ static int readdir_callback(const char *path, void *buf, fuse_fill_dir_t filler,
 static int open_callback(const char *path, struct fuse_file_info *fi) 
 {
   	int index = path_index(path);
-	if(index==-1)
+	if (index == -1)
 		return -ENOENT;
 	return 0;
 }
@@ -77,9 +77,8 @@ static int read_callback(const char *path, char *buf, size_t size, off_t offset,
 	int index = path_index(path);
 	FILE *file_in = fopen(STORE_FILE, "rb");
 	int start = index == 0 ? 0 : file_offset_end[index-1];
-	fseek(file_in, start, SEEK_SET);
-	fread(buf, file_offset_end[index] - start, 1,file_in);
-	size = file_offset_end[index]-start;
+	fseek(file_in, start + offset, SEEK_SET);
+	fread(buf, size, 1, file_in);
 	printf("%d\n",file_offset_end[index]-start);
 	printf("%s\n", buf);
 	fclose(file_in);
@@ -113,7 +112,7 @@ static int fst_write (const char *path, const char *buf, size_t size, off_t offs
 	fwrite(buf, size, 1, file_in);
 	printf("%d", start);
 	printf("%s\n", buf);
-	if(offset==0){
+	if (offset == 0) {
 		file_size[index] = 0;
 	}
 	file_offset_end[index] = start + offset;
@@ -124,7 +123,7 @@ static int fst_write (const char *path, const char *buf, size_t size, off_t offs
 static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 {
 	int index = path_index(path);
-	if(index!=-1) {
+	if (index != -1) {
 		return -ENOENT;
 	}
 	else {
@@ -133,16 +132,16 @@ static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 		int* buf = (int*)malloc(file_count*sizeof(int));
 		char **buf_name = (char**)malloc(file_count*sizeof(char*));
 		int* size_buf = (int*)malloc(file_count*sizeof(int));
-		for(i = 0; i< file_count; i++) {
+		for (i = 0; i < file_count; i++) {
 			buf_name[i] = (char*)malloc(NAME_LENGTH*sizeof(char));
 		}
-		for(i  = 0; i< file_count-1; i++) {
+		for (i  = 0; i < file_count-1; i++) {
 			buf[i] = file_offset_end[i];
 			size_buf[i] = file_size[i];
 			memset(buf_name[i], 0, NAME_LENGTH);
 			strcpy(buf_name[i], file_name[i]);
 		}
-		if(file_count!=1) {
+		if (file_count != 1) {
 			for(i = 0; i < file_count-2; i++) {
 				free(file_name[i]);
 			}
@@ -150,14 +149,14 @@ static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 			free(file_offset_end);
 			free(file_size);
 		}
-		for(i = 0; i < file_count-1; i++) {
+		for (i = 0; i < file_count-1; i++) {
 			printf("%s\n", buf_name[i]);
 		}
 		buf[file_count-1] = file_count==1 ? 0 : buf[file_count-2];
 		size_buf[file_count-1] = 0; 
 		memset(buf_name[file_count-1], 0, NAME_LENGTH);
 		strcpy(buf_name[file_count-1], path);
-		for(i = 0; i < file_count; i++) {
+		for (i = 0; i < file_count; i++) {
 			printf("%s\n", buf_name[i]);
 			printf("%d\n", buf[i]);
 		}
@@ -170,7 +169,7 @@ static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 static int fst_unlink (const char *path)
 {
 	int index = path_index(path);
-	if(index==-1){
+	if (index == -1) {
 		return -ENOENT;
 	}
 	memset(file_name[index], 0, NAME_LENGTH);
@@ -202,15 +201,15 @@ int main(int argc, char *argv[])
 	file_count = 0;
 	fread(&file_count, sizeof(int), 1, file_in);
 	//printf("file %d\n", file_count);
-	if(file_count!=0) {
+	if (file_count != 0) {
 		file_offset_end = (int*)malloc(file_count*sizeof(int));
 		file_name = (char**)malloc(file_count*sizeof(char*));
 		file_size = (int*)malloc(file_count*sizeof(int));
 		int i = 0;
-		for(i = 0; i< file_count; i++) {
+		for (i = 0; i< file_count; i++) {
 			file_name[i] = (char*)malloc(NAME_LENGTH*sizeof(char));
 		}
-		for(i = 0; i < file_count; i++) {
+		for (i = 0; i < file_count; i++) {
 			struct file_info info;
 			memset(info.file_name, 0, NAME_LENGTH);
 			fread(&info, sizeof(struct file_info), 1, file_in);
@@ -230,7 +229,7 @@ int main(int argc, char *argv[])
 	//printf("file %d\n", file_count);
 	fwrite(&file_count, sizeof(int), 1, file_in);
 	int i = 0;
-	for(i = 0; i < file_count; i++) {
+	for (i = 0; i < file_count; i++) {
 		struct file_info info;
 		memset(info.file_name, 0, NAME_LENGTH);
 		strcpy(info.file_name, file_name[i]);
@@ -241,7 +240,7 @@ int main(int argc, char *argv[])
 		//printf("file_size %d\n", info.file_size);
 		//printf("file_name %s\n", info.file_name);
 	}
-	for(i = 0; i < file_count-2; i++) {
+	for (i = 0; i < file_count-2; i++) {
 		free(file_name[i]);
 	}
 	free(file_name);
