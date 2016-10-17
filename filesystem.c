@@ -20,6 +20,7 @@ static int path_index(const char* path)
 		}
 	}
 	return -1;
+
 }
 
 static int getattr_callback(const char *path, struct stat *stbuf) 
