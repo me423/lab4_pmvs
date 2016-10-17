@@ -10,8 +10,8 @@ static int *file_offset_end;
 static char **file_name;
 static int *file_size;
 static int file_count = 0;
-#define STORE_FILE "/home/me4/Desktop/lab4_pmvs/all_file"
-#define BUF_FILE "/home/me4/Desktop/lab4_pmvs/buffer_file"
+#define STORE_FILE "/home/me4/Desktop/lab4_pmvs/filesave"
+#define BUF_FILE "/home/me4/Desktop/lab4_pmvs/buffile"
 struct file_info {
 	char file_name[NAME_LENGTH];
 	int file_size;
