@@ -8,10 +8,15 @@
 #define NAME_LENGTH 255
 static int *file_offset_end;
 static char **file_name;
+static int *file_size;
 static int file_count = 0;
-#define STORE_FILE "/home/user/pmvs4/all_file"
-#define BUF_FILE "/home/user/pmvs4/buffer_file"
-
+#define STORE_FILE "/home/me4/Desktop/lab4_pmvs/all_file"
+#define BUF_FILE "/home/me4/Desktop/lab4_pmvs//buffer_file"
+struct file_info {
+	char file_name[NAME_LENGTH];
+	int file_size;
+	int file_offset;
+};
 static int path_index(const char* path)
 {
 	int i  = 0;
@@ -21,9 +26,7 @@ static int path_index(const char* path)
 		}
 	}
 	return -1;
-
 }
-
 static int getattr_callback(const char *path, struct stat *stbuf) 
 {
 	memset(stbuf, 0, sizeof(struct stat));
@@ -41,7 +44,7 @@ static int getattr_callback(const char *path, struct stat *stbuf)
 		int start = index == 0 ? 0 : file_offset_end[index-1];
 		int size = file_offset_end[index]-start;
 		printf("%d\n", size);
-		stbuf->st_size = size;
+		stbuf->st_size = file_size[index];
 		return 0;
 	}
 	return -ENOENT;
@@ -105,56 +108,18 @@ static int fst_write (const char *path, const char *buf, size_t size, off_t offs
 		return -ENOENT;
 	}
 	FILE *file_in = fopen(STORE_FILE, "rb+");
-	FILE *file_buf;
-	int length = 0;
 	int start = index == 0 ? 0 : file_offset_end[index-1];
-	if(index != file_count - 1) {
-		file_buf = fopen(BUF_FILE, "rb+");
-		fseek(file_buf, 0, SEEK_SET);
-		fseek(file_in, 0, SEEK_END);
-		length = file_offset_end[file_count-1]-file_offset_end[index];
-		fseek(file_in, file_offset_end[index], SEEK_SET);
-		int buf_tr[4];
-		int j = 0;
-		for(j = 0; j < 4; j++) {
-			buf_tr[j] = 0;
-		}
-		while(fread(buf_tr, sizeof(int), 4, file_in) != 0) {
-			fwrite(buf_tr, sizeof(int), 4, file_buf);
-		}
-	}
-	fseek(file_in, start, SEEK_SET);
-	int buf_len =  strlen(buf);
-	fwrite(buf, buf_len, 1, file_in);	
+	fseek(file_in, start+offset, SEEK_SET);
+	fwrite(buf, size, 1, file_in);
 	printf("%d", start);
 	printf("%s\n", buf);
-	printf("%d\n", buf_len);
-	int prev_len = file_offset_end[index]-start;
-	file_offset_end[index] = start + buf_len;
-	if(index != file_count - 1) {
-		printf("+\n");
-		int buf_tr[4];
-		int j = 0;
-		for(j = 0; j<4; j++) {
-			buf_tr[j] = 0;
-		}
-		fseek(file_buf, 0, SEEK_SET);
-		int curr_off = 0;
-		int read = 0;
-		while((read= fread(buf_tr, sizeof(int), 4, file_buf)) != 0) {
-			curr_off+=read;
-			fwrite(buf_tr, sizeof(int), 4, file_in);
-			if(curr_off>=length) {
-				break;
-			}
-		}
-		for(j = index+1; j< file_count; j++) {
-			file_offset_end[j]+=(buf_len-prev_len);
-		}
-		fclose(file_buf);
+	if(offset==0){
+		file_size[index] = 0;
 	}
+	file_offset_end[index] = start + offset;
+	file_size[index]+=size;
 	fclose(file_in);
-	return buf_len;
+	return size;
 }
 static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 {
@@ -167,11 +132,13 @@ static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 		int i  = 0;
 		int* buf = (int*)malloc(file_count*sizeof(int));
 		char **buf_name = (char**)malloc(file_count*sizeof(char*));
+		int* size_buf = (int*)malloc(file_count*sizeof(int));
 		for(i = 0; i< file_count; i++) {
 			buf_name[i] = (char*)malloc(NAME_LENGTH*sizeof(char));
 		}
 		for(i  = 0; i< file_count-1; i++) {
 			buf[i] = file_offset_end[i];
+			size_buf[i] = file_size[i];
 			memset(buf_name[i], 0, NAME_LENGTH);
 			strcpy(buf_name[i], file_name[i]);
 		}
@@ -181,11 +148,13 @@ static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 			}
 			free(file_name);
 			free(file_offset_end);
+			free(file_size);
 		}
 		for(i = 0; i < file_count-1; i++) {
 			printf("%s\n", buf_name[i]);
 		}
 		buf[file_count-1] = file_count==1 ? 0 : buf[file_count-2];
+		size_buf[file_count-1] = 0; 
 		memset(buf_name[file_count-1], 0, NAME_LENGTH);
 		strcpy(buf_name[file_count-1], path);
 		for(i = 0; i < file_count; i++) {
@@ -194,6 +163,7 @@ static int fst_mknod (const char * path, mode_t mode, dev_t dev)
 		}
 		file_name = buf_name;
 		file_offset_end = buf;
+		file_size = size_buf;
 	}
 	return 0;
 }
@@ -224,7 +194,59 @@ static struct fuse_operations fuse_example_operations = {
 	.truncate = fst_truncate,
 	.unlink = fst_unlink
 };
+
 int main(int argc, char *argv[])
 {
-  return fuse_main(argc, argv, &fuse_example_operations, NULL);
+	FILE *file_in = fopen(BUF_FILE, "rb");
+	fseek(file_in, 0, SEEK_SET);
+	file_count = 0;
+	fread(&file_count, sizeof(int), 1, file_in);
+	//printf("file %d\n", file_count);
+	if(file_count!=0) {
+		file_offset_end = (int*)malloc(file_count*sizeof(int));
+		file_name = (char**)malloc(file_count*sizeof(char*));
+		file_size = (int*)malloc(file_count*sizeof(int));
+		int i = 0;
+		for(i = 0; i< file_count; i++) {
+			file_name[i] = (char*)malloc(NAME_LENGTH*sizeof(char));
+		}
+		for(i = 0; i < file_count; i++) {
+			struct file_info info;
+			memset(info.file_name, 0, NAME_LENGTH);
+			fread(&info, sizeof(struct file_info), 1, file_in);
+			//printf("file_offset %d\n", info.file_offset);
+			//printf("file_size %d\n", info.file_size);
+			//printf("file_name %s\n", info.file_name);
+			file_size[i] = info.file_size;
+			file_offset_end[i] = info.file_offset;
+			memset(file_name[i], 0, NAME_LENGTH);
+			strcpy(file_name[i], info.file_name);
+		}
+	}
+	fclose(file_in);
+	int x = fuse_main(argc, argv, &fuse_example_operations, NULL);
+	file_in = fopen(BUF_FILE, "rb+");
+	fseek(file_in, 0, SEEK_SET);
+	//printf("file %d\n", file_count);
+	fwrite(&file_count, sizeof(int), 1, file_in);
+	int i = 0;
+	for(i = 0; i < file_count; i++) {
+		struct file_info info;
+		memset(info.file_name, 0, NAME_LENGTH);
+		strcpy(info.file_name, file_name[i]);
+		info.file_size = file_size[i];
+		info.file_offset = file_offset_end[i];
+		fwrite(&info, sizeof(struct file_info), 1, file_in);
+		//printf("file_offset %d\n", info.file_offset);
+		//printf("file_size %d\n", info.file_size);
+		//printf("file_name %s\n", info.file_name);
+	}
+	for(i = 0; i < file_count-2; i++) {
+		free(file_name[i]);
+	}
+	free(file_name);
+	free(file_offset_end);
+	free(file_size);
+	fclose(file_in);
+	return x;
 }
